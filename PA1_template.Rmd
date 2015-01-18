@@ -8,23 +8,28 @@ output:
 
 ## Loading and preprocessing the data
 
-To begin, we load the provided data into the `df` data frame.
+To begin, we load the provided data into the `activity` data frame.
 
-```{r}
+```{r echo=TRUE}
 data_filename <- unzip("activity.zip", list = TRUE)[[1]] 
 unzip("activity.zip")
-df <- read.csv(data_filename, colClasses = c("integer", "Date", "integer"))
-head(df)
+activity <- read.csv(
+    file = data_filename, 
+    colClasses = c("integer", "Date", "integer")
+)
 ```
 
-Then, using the `interval` column, we create a `datetime` column.
+The interval data is massaged to a time column (in "HH:MM" format) in the data frame. 
 
 ```{r}
 library(stringr)
-df.time <- str_pad(df$interval, width=4, side = "left", pad = "0")
-df.time <- paste(substr(df.time, 1, 2), substr(df.time, 3,4), sep=":")
-df$datetime <- strptime(paste(df$date, df.time, sep = " "), "%F %H:%M")
-head(df)
+activity$time <- str_pad(activity$interval, width=4, side = "left", pad = "0")
+activity$time <- paste(
+    substr(activity$time, 1, 2),
+    substr(activity$time, 3, 4),
+    sep = ":"
+)
+head(activity)
 ```
 
 ## What is mean total number of steps taken per day?
@@ -32,32 +37,47 @@ head(df)
 We create a histogram of the **total** steps taken per day.
 
 ```{r}
-daily.total.steps <- tapply(df$steps, df$date, sum, na.rm = TRUE)
-hist(daily.total.steps, breaks = 10, col = "gray")
+total.steps.by.date <- tapply(activity$steps, activity$date, sum, na.rm=TRUE)
+hist(total.steps.by.date, breaks = 20) # custom breaks for increased detail
 ```
 
-And we calculate the **mean** and **median** total steps taken per day.
+As can be seen below, the **mean** and **median** total steps taken per day are 9354 and 10400, respectively.
 
 ```{r}
-# mean
-mean(daily.total.steps, na.rm = TRUE)
-# median
-median(daily.total.steps, na.rm = TRUE)
-summary(daily.total.steps, na.rm = TRUE)
+summary(total.steps.by.date, na.rm = TRUE)
 ```
 
 ## What is the average daily activity pattern?
 
+The time-series plot below illustrates the average number of steps taken at each of the 5-minute intervals.
+
 ```{r}
-average.steps.taken <- tapply(df$steps, df$interval, mean, na.rm = TRUE)
-plot(
-  average.steps.taken, 
-  type = "l",
-  xlab = "5-minute interval"
+# calculate average steps by 5-minute interval
+average.steps.by.interval <- tapply(
+    activity$steps,
+    activity$time,
+    mean,
+    na.rm = TRUE
 )
+
+# plot calculated average steps
+plot(
+    average.steps.by.interval,
+    type = "l", 
+    main = "Average Steps Taken by Five-Minute Interval",
+    xlab = "Time Interval",
+    xaxt = "n",
+    ylab = "Steps"
+)
+
+# change x-axis labels to reflect values, not indices
+xnames <- names(average.steps.by.interval)
+axis(1, at=1:length(xnames), labels=xnames)
 ```
 
-## Imputing missing values
+The **`r names(which.max(average.steps.by.interval))`** interval has the highest average number of steps taken across all days in the data set (viz., `r signif(max(average.steps.by.interval, na.rm = TRUE), digits = 1)`).
+
+## Inputting missing values
 
 
 
