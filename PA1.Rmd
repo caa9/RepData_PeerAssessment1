@@ -29,6 +29,11 @@ activity$time <- paste(
     substr(activity$time, 3, 4),
     sep = ":"
 )
+```
+
+The data frame now looks like this:
+
+```{r}
 head(activity)
 ```
 
@@ -86,6 +91,6 @@ missing.values <- is.na(activity$steps)
 sum(missing.values)
 ```
 
-There are a total of `r sum(missing.values)` values.
+There are a total of `r sum(missing.values)` values missing from the data set.
 
 ## Are there differences in activity patterns between weekdays and weekends?
