@@ -79,6 +79,13 @@ The **`r names(which.max(average.steps.by.interval))`** interval has the highest
 
 ## Inputting missing values
 
+### Calculating number of missing values
 
+```{r}
+missing.values <- is.na(activity$steps)
+sum(missing.values)
+```
+
+There are a total of `r sum(missing.values)` values.
 
 ## Are there differences in activity patterns between weekdays and weekends?
