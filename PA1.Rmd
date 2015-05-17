@@ -1,96 +1,164 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
+title: 'Reproducible Research: Peer Assessment 1'
+output:
   html_document:
-    keep_md: true
+    keep_md: yes
 ---
-
 
 ## Loading and preprocessing the data
 
 To begin, we load the provided data into the `activity` data frame.
 
-```{r echo=TRUE}
-data_filename <- unzip("activity.zip", list = TRUE)[[1]] 
-unzip("activity.zip")
+```{r load_data}
+data_filename <- unzip("activity.zip")
 activity <- read.csv(
-    file = data_filename, 
-    colClasses = c("integer", "Date", "integer")
+  file        = data_filename, 
+  colClasses  = c("integer", "Date", "integer")
 )
 ```
 
-The interval data is massaged to a time column (in "HH:MM" format) in the data frame. 
+## What is the mean total number of steps taken per day?
 
-```{r}
-library(stringr)
-activity$time <- str_pad(activity$interval, width=4, side = "left", pad = "0")
-activity$time <- paste(
-    substr(activity$time, 1, 2),
-    substr(activity$time, 3, 4),
-    sep = ":"
-)
+After calculating the daily total number of steps, the mean and median number of daily steps are calculated.
+
+```{r calculate_steps_per_day}
+steps_per_day         <- with(activity, tapply(steps, date, sum, na.rm = T))
+steps_per_day.hist    <- hist(steps_per_day,    plot = FALSE)
+steps_per_day.mean    <- mean(steps_per_day,   na.rm = TRUE)
+steps_per_day.median  <- median(steps_per_day, na.rm = TRUE)
 ```
 
-The data frame now looks like this:
+The **mean** number of steps per day is 
+`r round(steps_per_day.mean, digits = 0)` (rounding up),
+and the **median** number of steps per day is 
+`r steps_per_day.median`.
 
-```{r}
-head(activity)
-```
+See below for a histogram of the daily total number of steps, with the mean and median plotted in red and blue, respectively.
 
-## What is mean total number of steps taken per day?
-
-We create a histogram of the **total** steps taken per day.
-
-```{r}
-total.steps.by.date <- tapply(activity$steps, activity$date, sum, na.rm=TRUE)
-hist(total.steps.by.date, breaks = 20) # custom breaks for increased detail
-```
-
-As can be seen below, the **mean** and **median** total steps taken per day are 9354 and 10400, respectively.
-
-```{r}
-summary(total.steps.by.date, na.rm = TRUE)
+```{r plot_steps_per_day}
+plot(steps_per_day.hist)
+abline(v = steps_per_day.mean,   col = "red",  lty = "dashed")
+abline(v = steps_per_day.median, col = "blue", lty = "dotted", lwd = 2)
 ```
 
 ## What is the average daily activity pattern?
 
-The time-series plot below illustrates the average number of steps taken at each of the 5-minute intervals.
+The average number of steps taken at each five-minute interval are calculated and plotted as a time series below.  
 
-```{r}
-# calculate average steps by 5-minute interval
-average.steps.by.interval <- tapply(
-    activity$steps,
-    activity$time,
-    mean,
-    na.rm = TRUE
+```{r avg_steps_per_interval}
+# calculate average steps per interval
+mean_steps_per_interval <- tapply(
+  activity$steps,
+  activity$interval,
+  mean,
+  na.rm = TRUE
 )
 
-# plot calculated average steps
+# plot average steps per interval
 plot(
-    average.steps.by.interval,
-    type = "l", 
-    main = "Average Steps Taken by Five-Minute Interval",
-    xlab = "Time Interval",
-    xaxt = "n",
-    ylab = "Steps"
+  x     = mean_steps_per_interval,
+  type  = "l", 
+  main  = "Average Steps Taken per Five-Minute Interval",
+  xlab  = "Time Interval",
+  xaxt  = "n",
+  ylab  = "Steps"
 )
 
 # change x-axis labels to reflect values, not indices
-xnames <- names(average.steps.by.interval)
+xnames <- names(mean_steps_per_interval)
 axis(1, at=1:length(xnames), labels=xnames)
 ```
 
-The **`r names(which.max(average.steps.by.interval))`** interval has the highest average number of steps taken across all days in the data set (viz., `r signif(max(average.steps.by.interval, na.rm = TRUE), digits = 1)`).
+The interval that has the highest average number of steps taken across all days in the data set is:
+```{r max_avg_steps_per_interval}
+names(which.max(mean_steps_per_interval))
+```
 
 ## Inputting missing values
 
 ### Calculating number of missing values
 
-```{r}
-missing.values <- is.na(activity$steps)
-sum(missing.values)
+There are some entries for which the `steps` value is missing:
+```{r missing_values}
+sum(is.na(activity$steps))
 ```
 
-There are a total of `r sum(missing.values)` values missing from the data set.
+### Filling in missing values
+
+To address these missing values, we create a new data set (`revised_activity`) in which each missing number of steps is replaced with the average number of steps for the five-minute interval in question.  That is, each missing value for steps at interval "0" is replaced with the average number of steps at the "0" interval, etc.
+
+```{r filling_missing_values}
+revised_activity <- activity
+
+for (i in unique(revised_activity$interval)) {
+  revised_activity[revised_activity$interval == i, ]$steps <- ifelse(
+    is.na(revised_activity[revised_activity$interval == i, ]$steps), 
+    mean_steps_per_interval[as.character(i)], 
+    revised_activity[revised_activity$interval == i, ]$steps
+  )
+}
+```
+
+The total, mean, and median number of steps per day are calculated below:
+
+```{r steps_per_day_revised_activity}
+revised_steps_per_day <- with(revised_activity, 
+  tapply(steps, date, sum, na.rm = TRUE)
+)
+revised_steps_per_day.hist    <- hist(revised_steps_per_day,    plot = FALSE)
+revised_steps_per_day.mean    <- mean(revised_steps_per_day,   na.rm = TRUE)
+revised_steps_per_day.median  <- median(revised_steps_per_day, na.rm = TRUE)
+```
+
+Both the **mean** and **median** number of steps per day have changed, and they also happen to be equal to each other:
+```{r revised_activity_stats}
+print(revised_steps_per_day.mean)
+print(revised_steps_per_day.median)
+```
+
+The revised **total** number of steps is plotted below:
+
+```{r_revised_activity_histogram}
+plot(revised_steps_per_day.hist)
+abline(v = revised_steps_per_day.mean,   col = "red",  lty = "dashed")
+abline(v = revised_steps_per_day.median, col = "blue", lty = "dotted", lwd = 2)
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+A `daytype` factor is added, to differentiate entries for weekdays versus those for the weekend.
+
+```{r create_daytype_factor}
+revised_activity$daytype <- factor(ifelse(
+  weekdays(revised_activity$date) %in% c("Saturday", "Sunday"),
+  "weekend",
+  "weekday"
+))
+```
+
+The new factor is used to calculate the average number of steps by interval and daytype.
+
+```{r calculate_mean_steps_by_interval_and_daytype}
+mean_steps_by_interval_and_daytype <- aggregate(
+  revised_activity$steps,
+  list(
+    interval = revised_activity$interval,
+    daytype = revised_activity$daytype
+  ),
+  mean,
+  na.rm = TRUE
+)
+```
+
+The average number of steps by interval and daytype is plotted below as a time series.  As can be seen, there tends be more activity more or less distributed throughout most of the day during the weekend, compared to the single mid-morning peak during the work week.
+
+```{r plot_mean_steps_by_interval_and_daytype}
+library(lattice)
+xyplot(
+  x ~ interval | daytype, 
+  data = mean_steps_by_interval_and_daytype, 
+  layout = c(1,2),
+  type = "l",
+  ylab = "number of steps"
+)
+```
